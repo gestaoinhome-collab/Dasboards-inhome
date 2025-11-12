@@ -1,5 +1,3 @@
-st.caption("Build: 2025-11-12-18h")
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -7,6 +5,10 @@ import plotly.graph_objects as go
 from pathlib import Path
 import subprocess
 import sys
+
+APP_BUILD = "2025-11-12-18h"
+st.set_page_config(page_title="Dashboard de Ligações", layout="wide")
+st.caption(f"Build: {APP_BUILD}")
 
 # =====================================================================
 # 0) DIRETÓRIOS / ARQUIVOS
@@ -106,26 +108,15 @@ def atualizar_agora():
     st.success("Atualização concluída! Os arquivos locais foram atualizados. ✅")
 
 # =====================================================================
-# 3) CONFIG DO STREAMLIT
+# 3) ESTILO / LOGIN
 # =====================================================================
-st.set_page_config(page_title="Dashboard de Ligações", layout="wide")
-st.title("Dashboard de Ligações - Agentes")
-
-# --- ESTILO GLOBAL E OCULTAR HEADER/FOOTER ---
 st.markdown("""
 <style>
-/* some reset */
 * { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', 'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol' !important; }
 header, #MainMenu, footer { visibility: hidden; height: 0; }
 section[data-testid="stSidebar"] { background: #111417; }
-
-/* página escura */
 html, body, .stApp { background-color: #0f1215 !important; color: #eaecee !important; }
-
-/* título */
-h1, .st-emotion-cache-10trblm { font-weight: 800 !important; letter-spacing: 0.3px; }
-
-/* card do login */
+h1 { font-weight: 800 !important; letter-spacing: 0.3px; }
 .login-card {
   border: 1px solid rgba(255,255,255,0.08);
   background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
@@ -134,44 +125,31 @@ h1, .st-emotion-cache-10trblm { font-weight: 800 !important; letter-spacing: 0.3
   padding: 22px 20px 16px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.25);
 }
-
-/* inputs mais “clean” */
 .stTextInput > div > div > input {
   background: #1b1f25 !important;
   border: 1px solid #2a2f36 !important;
   color: #eaecee !important;
 }
 .stTextInput > div > div:focus-within { border-color: #46a049 !important; }
-
-/* botões */
 .stButton>button {
   background: #46a049 !important; border: 0 !important; color: #fff !important;
   font-weight: 700; padding: 8px 18px; border-radius: 8px;
 }
 .stButton>button:hover { filter: brightness(1.05); }
-
-/* espaçamentos finos */
 .container-tight { padding-top: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- caminhos de imagem ---
-from pathlib import Path
-BASE_DIR = Path(__file__).resolve().parent
 LOGO = BASE_DIR / "assets" / "logo_sonax.png"
-MASCOTE = BASE_DIR / "assets" / "mascote.png"
-
 st.title("Dashboard de Ligações - Agentes")
 
-# ===================== LOGIN (substitui seu bloco de login) =====================
+# ---- LOGIN estilizado (único) ----
 if "usuario" not in st.session_state:
     colL, colSpacer, colR = st.columns([0.58, 0.02, 0.40])
-
     with colL:
         st.markdown('<div class="login-card">', unsafe_allow_html=True)
         with st.form("login", clear_on_submit=False):
             user = st.text_input("Usuário", key="login_user")
-            # alternador “mostrar senha”
             colps, colchk = st.columns([0.86, 0.14])
             with colps:
                 pwd = st.text_input("Senha", type="password", key="login_pwd")
@@ -179,40 +157,16 @@ if "usuario" not in st.session_state:
                 mostrar = st.checkbox("👁", value=False, help="Mostrar senha")
             if mostrar:
                 st.info(pwd if pwd else "Digite a senha...", icon="🔑")
-
             entrou = st.form_submit_button("Entrar")
-
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # logo central abaixo
         if LOGO.exists():
             st.markdown('<div class="container-tight"></div>', unsafe_allow_html=True)
             st.image(str(LOGO), use_column_width=False, width=520)
-
-    with colR:
-        if MASCOTE.exists():
-            st.image(str(MASCOTE), use_column_width=True)
-
-    if entrou:
-        if user in USERS and USERS[user]["senha"] == pwd:
-            st.session_state["usuario"] = user
-            st.session_state["alias"] = USERS[user]["alias"]
-            st.rerun()
         else:
-            st.error("Usuário ou senha inválidos.")
+            st.caption("Logo não encontrada em assets/logo_sonax.png")
 
-    st.stop()
-# ===================== /LOGIN =====================
-
-
-# =====================================================================
-# 4) LOGIN
-# =====================================================================
-if "usuario" not in st.session_state:
-    with st.form("login"):
-        user = st.text_input("Usuário")
-        pwd = st.text_input("Senha", type="password")
-        entrou = st.form_submit_button("Entrar")
+    # coluna direita sem mascote (opcional)
 
     if entrou:
         if user in USERS and USERS[user]["senha"] == pwd:
@@ -224,24 +178,28 @@ if "usuario" not in st.session_state:
     st.stop()
 
 # =====================================================================
-# 5) DASHBOARD (DEPOIS DO LOGIN)
+# 4) PÓS-LOGIN (DASHBOARD)
 # =====================================================================
+# Botão de logout (útil para testar a tela de login)
+with st.sidebar:
+    if st.button("↩️ Sair"):
+        for k in list(st.session_state.keys()):
+            del st.session_state[k]
+        st.rerun()
+
 usuario = st.session_state["usuario"]
 alias = st.session_state["alias"]
-
 st.subheader(f"Agente: {usuario} (alias {alias})")
 
-# Botão de atualização manual
 if st.button("🔄 Atualizar Agora"):
     atualizar_agora()
 
-# Carrega dados locais
 df = carregar_dados_local(alias)
 if df is None or df.empty:
     st.stop()
 
 # =====================================================================
-# 6) PREPARAÇÃO DOS DADOS (datas, ano, mês, dia)
+# 5) PREPARAÇÃO DOS DADOS
 # =====================================================================
 if "dt_inicio" in df.columns:
     df["dt_inicio"] = pd.to_datetime(df["dt_inicio"], dayfirst=True, errors="coerce")
@@ -252,18 +210,15 @@ else:
 df["dia"] = df["dt_inicio"].dt.day
 df["mes"] = df["dt_inicio"].dt.month
 df["ano"] = df["dt_inicio"].dt.year
-
 if "total_ligacoes" not in df.columns:
     df["total_ligacoes"] = 1
 
 # =====================================================================
-# 7) FILTROS (ANO / MÊS)
+# 6) FILTROS
 # =====================================================================
 anos_disponiveis = sorted(df["ano"].dropna().unique())
-meses_nomes = [
-    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
-]
+meses_nomes = ["janeiro","fevereiro","março","abril","maio","junho",
+               "julho","agosto","setembro","outubro","novembro","dezembro"]
 mes_map = {nome: i + 1 for i, nome in enumerate(meses_nomes)}
 
 col_f1, col_f2 = st.columns(2)
@@ -283,11 +238,10 @@ if df.empty:
     st.stop()
 
 # =====================================================================
-# 8) MÉTRICAS DE TOPO
+# 7) MÉTRICAS
 # =====================================================================
 total_ligacoes = int(df["total_ligacoes"].sum())
 total_empresas = df["Empresa"].nunique() if "Empresa" in df.columns else 0
-
 m1, m2 = st.columns(2)
 with m1:
     st.metric("Total Empresas", total_empresas)
@@ -295,16 +249,11 @@ with m2:
     st.metric("Total Ligações", f"{total_ligacoes:,}".replace(",", "."))
 
 # =====================================================================
-# 9) GRÁFICO DE LINHA - LIGAÇÕES POR DIA (cor #46a049, fill claro e rótulo no ponto)
+# 8) GRÁFICO LINHA: LIGAÇÕES POR DIA
 # =====================================================================
 if "dia" in df.columns:
     df_linha = df.groupby("dia", as_index=False)["total_ligacoes"].sum().sort_values("dia")
-    fig_linha = px.line(
-        df_linha, x="dia", y="total_ligacoes",
-        title="Ligações por Dia",
-        markers=True
-    )
-    # cor da linha + preenchimento suave
+    fig_linha = px.line(df_linha, x="dia", y="total_ligacoes", title="Ligações por Dia", markers=True)
     fig_linha.update_traces(
         line=dict(color="#46a049", width=3),
         fill="tozeroy",
@@ -316,16 +265,17 @@ if "dia" in df.columns:
     fig_linha.update_layout(
         xaxis_title="Dia",
         yaxis_title="Total de ligações",
-        hovermode="x unified"
+        hovermode="x unified",
+        yaxis=dict(rangemode="tozero")
     )
     st.plotly_chart(fig_linha, use_container_width=True)
 
 # =====================================================================
-# 10) GRÁFICOS: PIZZA (STATUS) + BARRAS (EMPRESA/FILA)
+# 9) PIZZA (Atendidas x Não atendidas) + BARRAS HORIZONTAIS
 # =====================================================================
 g1, g2 = st.columns(2)
 
-# --- PIZZA: status renomeado + cores fixas + totais ---
+# --- PIZZA ---
 status_col = None
 for cand in ["status", "ds_status", "situacao"]:
     if cand in df.columns:
@@ -334,38 +284,21 @@ for cand in ["status", "ds_status", "situacao"]:
 
 if status_col:
     df_status = df.groupby(status_col, as_index=False)["total_ligacoes"].sum()
-
-    # normaliza/renomeia
     mapa = {
-        "OK": "Atendidas",
-        "ATENDIDA": "Atendidas",
-        "INDISPONÍVEL": "Não atendidas",
-        "INDISPONIVEL": "Não atendidas",
-        "NAO ATENDIDA": "Não atendidas",
-        "NÃO ATENDIDA": "Não atendidas",
+        "OK": "Atendidas", "ATENDIDA": "Atendidas",
+        "INDISPONÍVEL": "Não atendidas", "INDISPONIVEL": "Não atendidas",
+        "NAO ATENDIDA": "Não atendidas", "NÃO ATENDIDA": "Não atendidas",
     }
     df_status["Status"] = df_status[status_col].astype(str).str.upper().map(mapa).fillna(df_status[status_col])
-
-    # cores pedidas
-    color_map = {
-        "Atendidas": "#46a049",
-        "Não atendidas": "#f19a37",
-    }
-
-    # garante ordem amigável
     ordem = ["Atendidas", "Não atendidas"]
     df_status["Status"] = pd.Categorical(df_status["Status"], categories=ordem, ordered=True)
     df_status = df_status.groupby("Status", as_index=False)["total_ligacoes"].sum()
 
+    color_map = {"Atendidas": "#46a049", "Não atendidas": "#f19a37"}
     fig_pizza = px.pie(
-        df_status,
-        names="Status",
-        values="total_ligacoes",
-        title="Atendidas x Não Atendidas",
-        color="Status",
-        color_discrete_map=color_map
+        df_status, names="Status", values="total_ligacoes",
+        title="Atendidas x Não Atendidas", color="Status", color_discrete_map=color_map
     )
-    # mostra TOTAL (valor) + %
     fig_pizza.update_traces(
         textinfo="label+value+percent",
         textfont=dict(size=13),
@@ -373,39 +306,35 @@ if status_col:
     )
     g1.plotly_chart(fig_pizza, use_container_width=True)
 
-# --- BARRAS HORIZONTAIS: cor #f19a37, borda preta, rótulo com total ---
-eixo_categoria = "Empresa"
+# --- BARRAS HORIZONTAIS ---
+eixo_categoria = "Empresa" if "Empresa" in df.columns else None
 if "fila" in df.columns:
     eixo_categoria = "fila"
-
-df_fila = df.groupby(eixo_categoria, as_index=False)["total_ligacoes"].sum().sort_values("total_ligacoes")
-
-fig_fila = px.bar(
-    df_fila,
-    x="total_ligacoes",
-    y=eixo_categoria,
-    orientation="h",
-    title=f"Total por {eixo_categoria}"
-)
-fig_fila.update_traces(
-    marker_color="#f19a37",
-    marker_line_color="black",
-    marker_line_width=1,
-    text=df_fila["total_ligacoes"],
-    texttemplate="%{text}",
-    textposition="outside"
-)
-fig_fila.update_layout(
-    xaxis_title="Total de ligações",
-    yaxis_title=eixo_categoria,
-    uniformtext_minsize=10,
-    uniformtext_mode="show",
-    margin=dict(l=10, r=10, t=60, b=10)
-)
-g2.plotly_chart(fig_fila, use_container_width=True)
+if eixo_categoria:
+    df_fila = df.groupby(eixo_categoria, as_index=False)["total_ligacoes"].sum().sort_values("total_ligacoes")
+    fig_fila = px.bar(
+        df_fila, x="total_ligacoes", y=eixo_categoria,
+        orientation="h", title=f"Total por {eixo_categoria}"
+    )
+    fig_fila.update_traces(
+        marker_color="#f19a37",
+        marker_line_color="black",
+        marker_line_width=1,
+        text=df_fila["total_ligacoes"],
+        texttemplate="%{text}",
+        textposition="outside"
+    )
+    fig_fila.update_layout(
+        xaxis_title="Total de ligações", yaxis_title=eixo_categoria,
+        uniformtext_minsize=10, uniformtext_mode="show",
+        margin=dict(l=10, r=10, t=60, b=10),
+        yaxis=dict(automargin=True),
+        xaxis=dict(rangemode="tozero")
+    )
+    g2.plotly_chart(fig_fila, use_container_width=True)
 
 # =====================================================================
-# 11) TABELA + DOWNLOAD
+# 10) TABELA + DOWNLOAD
 # =====================================================================
 st.subheader("Tabela de Ligações (amostra)")
 st.dataframe(df.head(50))
