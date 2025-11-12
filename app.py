@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from pathlib import Path
 import subprocess
+import sys
 
 # =====================================================================
 # 0) DIRETÓRIOS / ARQUIVOS
@@ -13,7 +15,6 @@ DADOS_DIR.mkdir(exist_ok=True)
 
 # =====================================================================
 # 1) CONFIGURAÇÃO DE USUÁRIOS (LOGIN -> ALIAS)
-#    Depois você troca pelos agentes reais
 # =====================================================================
 USERS = {
     "ALESSANDRA SOUZA": {"senha": "1234", "alias": 309},
@@ -96,14 +97,11 @@ def carregar_dados_local(alias: int) -> pd.DataFrame:
         return pd.DataFrame()
     return pd.read_parquet(arquivo)
 
-
 def atualizar_agora():
     """Chama o script atualiza_dados.py para atualizar todos os agentes."""
     with st.spinner("Buscando dados diretamente na API... isso pode demorar ⏳"):
-        # roda o script usando o mesmo Python da máquina
-        subprocess.run(["python", "atualiza_dados.py"], cwd=str(BASE_DIR))
+        subprocess.run([sys.executable, "atualiza_dados.py"], cwd=str(BASE_DIR))
     st.success("Atualização concluída! Os arquivos locais foram atualizados. ✅")
-
 
 # =====================================================================
 # 3) CONFIG DO STREAMLIT
@@ -143,7 +141,6 @@ if st.button("🔄 Atualizar Agora"):
 
 # Carrega dados locais
 df = carregar_dados_local(alias)
-
 if df is None or df.empty:
     st.stop()
 
@@ -160,12 +157,11 @@ df["dia"] = df["dt_inicio"].dt.day
 df["mes"] = df["dt_inicio"].dt.month
 df["ano"] = df["dt_inicio"].dt.year
 
-# Garante a coluna de contagem
 if "total_ligacoes" not in df.columns:
     df["total_ligacoes"] = 1
 
 # =====================================================================
-# 7) FILTROS (ANO / MÊS) EM CIMA DOS DADOS LOCAIS
+# 7) FILTROS (ANO / MÊS)
 # =====================================================================
 anos_disponiveis = sorted(df["ano"].dropna().unique())
 meses_nomes = [
@@ -181,13 +177,10 @@ with col_f1:
 with col_f2:
     mes_sel = st.selectbox("Filtro Mês", ["Todos"] + meses_nomes)
 
-# Aplica filtros
 if ano_sel != "Todos":
     df = df[df["ano"] == int(ano_sel)]
-
 if mes_sel != "Todos":
-    mes_num = mes_map[mes_sel]
-    df = df[df["mes"] == mes_num]
+    df = df[df["mes"] == mes_map[mes_sel]]
 
 if df.empty:
     st.warning("Nenhum dado após aplicar os filtros selecionados.")
@@ -206,19 +199,37 @@ with m2:
     st.metric("Total Ligações", f"{total_ligacoes:,}".replace(",", "."))
 
 # =====================================================================
-# 9) GRÁFICO DE LINHA - LIGAÇÕES POR DIA
+# 9) GRÁFICO DE LINHA - LIGAÇÕES POR DIA (cor #46a049, fill claro e rótulo no ponto)
 # =====================================================================
 if "dia" in df.columns:
-    df_linha = df.groupby("dia", as_index=False)["total_ligacoes"].sum()
-    fig_linha = px.line(df_linha, x="dia", y="total_ligacoes", title="Ligações por Dia")
+    df_linha = df.groupby("dia", as_index=False)["total_ligacoes"].sum().sort_values("dia")
+    fig_linha = px.line(
+        df_linha, x="dia", y="total_ligacoes",
+        title="Ligações por Dia",
+        markers=True
+    )
+    # cor da linha + preenchimento suave
+    fig_linha.update_traces(
+        line=dict(color="#46a049", width=3),
+        fill="tozeroy",
+        fillcolor="rgba(70,160,73,0.2)",
+        text=df_linha["total_ligacoes"],
+        texttemplate="<b>%{text}</b>",
+        textposition="top center"
+    )
+    fig_linha.update_layout(
+        xaxis_title="Dia",
+        yaxis_title="Total de ligações",
+        hovermode="x unified"
+    )
     st.plotly_chart(fig_linha, use_container_width=True)
 
 # =====================================================================
-# 10) GRÁFICOS DE BAIXO: PIZZA (STATUS) + BARRAS (EMPRESA/FILA)
+# 10) GRÁFICOS: PIZZA (STATUS) + BARRAS (EMPRESA/FILA)
 # =====================================================================
 g1, g2 = st.columns(2)
 
-# Coluna de status (pra atendida/não atendida)
+# --- PIZZA: status renomeado + cores fixas + totais ---
 status_col = None
 for cand in ["status", "ds_status", "situacao"]:
     if cand in df.columns:
@@ -226,27 +237,74 @@ for cand in ["status", "ds_status", "situacao"]:
         break
 
 if status_col:
-    df_pizza = df.groupby(status_col, as_index=False)["total_ligacoes"].sum()
+    df_status = df.groupby(status_col, as_index=False)["total_ligacoes"].sum()
+
+    # normaliza/renomeia
+    mapa = {
+        "OK": "Atendidas",
+        "ATENDIDA": "Atendidas",
+        "INDISPONÍVEL": "Não atendidas",
+        "INDISPONIVEL": "Não atendidas",
+        "NAO ATENDIDA": "Não atendidas",
+        "NÃO ATENDIDA": "Não atendidas",
+    }
+    df_status["Status"] = df_status[status_col].astype(str).str.upper().map(mapa).fillna(df_status[status_col])
+
+    # cores pedidas
+    color_map = {
+        "Atendidas": "#46a049",
+        "Não atendidas": "#f19a37",
+    }
+
+    # garante ordem amigável
+    ordem = ["Atendidas", "Não atendidas"]
+    df_status["Status"] = pd.Categorical(df_status["Status"], categories=ordem, ordered=True)
+    df_status = df_status.groupby("Status", as_index=False)["total_ligacoes"].sum()
+
     fig_pizza = px.pie(
-        df_pizza,
-        names=status_col,
+        df_status,
+        names="Status",
         values="total_ligacoes",
-        title="Atendida x Não Atendida (por status)"
+        title="Atendidas x Não Atendidas",
+        color="Status",
+        color_discrete_map=color_map
+    )
+    # mostra TOTAL (valor) + %
+    fig_pizza.update_traces(
+        textinfo="label+value+percent",
+        textfont=dict(size=13),
+        pull=[0.02 if s == "Não atendidas" else 0 for s in df_status["Status"]]
     )
     g1.plotly_chart(fig_pizza, use_container_width=True)
 
-# Barras por Empresa (ou por fila, se existir)
+# --- BARRAS HORIZONTAIS: cor #f19a37, borda preta, rótulo com total ---
 eixo_categoria = "Empresa"
 if "fila" in df.columns:
     eixo_categoria = "fila"
 
-df_fila = df.groupby(eixo_categoria, as_index=False)["total_ligacoes"].sum()
+df_fila = df.groupby(eixo_categoria, as_index=False)["total_ligacoes"].sum().sort_values("total_ligacoes")
+
 fig_fila = px.bar(
     df_fila,
     x="total_ligacoes",
     y=eixo_categoria,
     orientation="h",
     title=f"Total por {eixo_categoria}"
+)
+fig_fila.update_traces(
+    marker_color="#f19a37",
+    marker_line_color="black",
+    marker_line_width=1,
+    text=df_fila["total_ligacoes"],
+    texttemplate="%{text}",
+    textposition="outside"
+)
+fig_fila.update_layout(
+    xaxis_title="Total de ligações",
+    yaxis_title=eixo_categoria,
+    uniformtext_minsize=10,
+    uniformtext_mode="show",
+    margin=dict(l=10, r=10, t=60, b=10)
 )
 g2.plotly_chart(fig_fila, use_container_width=True)
 
