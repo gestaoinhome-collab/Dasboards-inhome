@@ -1,3 +1,5 @@
+st.caption("Build: 2025-11-12-18h")
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -108,6 +110,100 @@ def atualizar_agora():
 # =====================================================================
 st.set_page_config(page_title="Dashboard de Ligações", layout="wide")
 st.title("Dashboard de Ligações - Agentes")
+
+# --- ESTILO GLOBAL E OCULTAR HEADER/FOOTER ---
+st.markdown("""
+<style>
+/* some reset */
+* { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', 'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol' !important; }
+header, #MainMenu, footer { visibility: hidden; height: 0; }
+section[data-testid="stSidebar"] { background: #111417; }
+
+/* página escura */
+html, body, .stApp { background-color: #0f1215 !important; color: #eaecee !important; }
+
+/* título */
+h1, .st-emotion-cache-10trblm { font-weight: 800 !important; letter-spacing: 0.3px; }
+
+/* card do login */
+.login-card {
+  border: 1px solid rgba(255,255,255,0.08);
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  backdrop-filter: blur(4px);
+  border-radius: 12px;
+  padding: 22px 20px 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+}
+
+/* inputs mais “clean” */
+.stTextInput > div > div > input {
+  background: #1b1f25 !important;
+  border: 1px solid #2a2f36 !important;
+  color: #eaecee !important;
+}
+.stTextInput > div > div:focus-within { border-color: #46a049 !important; }
+
+/* botões */
+.stButton>button {
+  background: #46a049 !important; border: 0 !important; color: #fff !important;
+  font-weight: 700; padding: 8px 18px; border-radius: 8px;
+}
+.stButton>button:hover { filter: brightness(1.05); }
+
+/* espaçamentos finos */
+.container-tight { padding-top: 8px; }
+</style>
+""", unsafe_allow_html=True)
+
+# --- caminhos de imagem ---
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent
+LOGO = BASE_DIR / "assets" / "logo_sonax.png"
+MASCOTE = BASE_DIR / "assets" / "mascote.png"
+
+st.title("Dashboard de Ligações - Agentes")
+
+# ===================== LOGIN (substitui seu bloco de login) =====================
+if "usuario" not in st.session_state:
+    colL, colSpacer, colR = st.columns([0.58, 0.02, 0.40])
+
+    with colL:
+        st.markdown('<div class="login-card">', unsafe_allow_html=True)
+        with st.form("login", clear_on_submit=False):
+            user = st.text_input("Usuário", key="login_user")
+            # alternador “mostrar senha”
+            colps, colchk = st.columns([0.86, 0.14])
+            with colps:
+                pwd = st.text_input("Senha", type="password", key="login_pwd")
+            with colchk:
+                mostrar = st.checkbox("👁", value=False, help="Mostrar senha")
+            if mostrar:
+                st.info(pwd if pwd else "Digite a senha...", icon="🔑")
+
+            entrou = st.form_submit_button("Entrar")
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # logo central abaixo
+        if LOGO.exists():
+            st.markdown('<div class="container-tight"></div>', unsafe_allow_html=True)
+            st.image(str(LOGO), use_column_width=False, width=520)
+
+    with colR:
+        if MASCOTE.exists():
+            st.image(str(MASCOTE), use_column_width=True)
+
+    if entrou:
+        if user in USERS and USERS[user]["senha"] == pwd:
+            st.session_state["usuario"] = user
+            st.session_state["alias"] = USERS[user]["alias"]
+            st.rerun()
+        else:
+            st.error("Usuário ou senha inválidos.")
+
+    st.stop()
+# ===================== /LOGIN =====================
+
 
 # =====================================================================
 # 4) LOGIN
