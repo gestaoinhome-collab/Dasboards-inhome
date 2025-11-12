@@ -11,7 +11,9 @@ DADOS_DIR = BASE_DIR / "dados"
 DADOS_DIR.mkdir(exist_ok=True)
 
 # Carregar empresas
-EMPRESAS = json.loads((BASE_DIR / "empresas_config.json").read_text(encoding="utf-8"))
+import streamlit as st
+EMPRESAS = st.secrets["EMPRESAS"]
+
 
 # --- Usuários (agentes) e alias ---
 USERS = {
