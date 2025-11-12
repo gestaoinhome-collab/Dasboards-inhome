@@ -112,30 +112,67 @@ def atualizar_agora():
 # =====================================================================
 st.markdown("""
 <style>
-* { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', 'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol' !important; }
+/* fontes e reset */
+* {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans' !important;
+  color: #111 !important;
+}
+
+/* remove header e rodapé */
 header, #MainMenu, footer { visibility: hidden; height: 0; }
-section[data-testid="stSidebar"] { background: #111417; }
-html, body, .stApp { background-color: #0f1215 !important; color: #eaecee !important; }
-h1 { font-weight: 800 !important; letter-spacing: 0.3px; }
+
+/* fundo principal claro */
+html, body, .stApp {
+  background-color: #f5f2ec !important;
+}
+
+/* títulos */
+h1, h2, h3, .st-emotion-cache-10trblm {
+  font-weight: 800 !important;
+  letter-spacing: 0.3px;
+  color: #000 !important;
+}
+
+/* card do login */
 .login-card {
-  border: 1px solid rgba(255,255,255,0.08);
-  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
-  backdrop-filter: blur(4px);
+  border: 1px solid rgba(0,0,0,0.1);
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(6px);
   border-radius: 12px;
-  padding: 22px 20px 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  padding: 24px 22px 20px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
 }
+
+/* inputs */
 .stTextInput > div > div > input {
-  background: #1b1f25 !important;
-  border: 1px solid #2a2f36 !important;
-  color: #eaecee !important;
+  background: #fff !important;
+  border: 1px solid #bbb !important;
+  color: #000 !important;
 }
-.stTextInput > div > div:focus-within { border-color: #46a049 !important; }
+.stTextInput > div > div:focus-within {
+  border-color: #46a049 !important;
+}
+
+/* botões */
 .stButton>button {
-  background: #46a049 !important; border: 0 !important; color: #fff !important;
-  font-weight: 700; padding: 8px 18px; border-radius: 8px;
+  background: #46a049 !important;
+  border: none !important;
+  color: #fff !important;
+  font-weight: 700;
+  padding: 8px 18px;
+  border-radius: 8px;
 }
-.stButton>button:hover { filter: brightness(1.05); }
+.stButton>button:hover { filter: brightness(1.08); }
+
+/* logo centralizada */
+div[data-testid="stImage"] {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+}
+
+/* spacing */
 .container-tight { padding-top: 8px; }
 </style>
 """, unsafe_allow_html=True)
