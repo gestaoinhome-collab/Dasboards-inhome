@@ -112,70 +112,68 @@ def atualizar_agora():
 # =====================================================================
 st.markdown("""
 <style>
-/* fontes e reset */
+/* =================== RESET GERAL =================== */
 * {
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans' !important;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', 'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol' !important;
+}
+header, #MainMenu, footer { visibility: hidden; height: 0; }
+section[data-testid="stSidebar"] { background: #f5f2ec; }
+
+/* Fundo geral e cor do texto */
+html, body, .stApp {
+  background-color: #f5f2ec !important;
   color: #111 !important;
 }
 
-/* remove header e rodapé */
-header, #MainMenu, footer { visibility: hidden; height: 0; }
-
-/* fundo principal claro */
-html, body, .stApp {
-  background-color: #f5f2ec !important;
-}
-
-/* títulos */
-h1, h2, h3, .st-emotion-cache-10trblm {
+/* =================== TÍTULO =================== */
+h1, .st-emotion-cache-10trblm {
   font-weight: 800 !important;
   letter-spacing: 0.3px;
-  color: #000 !important;
+  color: #111 !important;
 }
 
-/* card do login */
+/* =================== CARD DE LOGIN =================== */
 .login-card {
-  border: 1px solid rgba(0,0,0,0.1);
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: blur(6px);
+  border: 1px solid rgba(0,0,0,0.08);
+  background: #faf9f7;
   border-radius: 12px;
-  padding: 24px 22px 20px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  padding: 22px 20px 16px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
 }
 
-/* inputs */
+/* =================== INPUTS =================== */
 .stTextInput > div > div > input {
   background: #fff !important;
   border: 1px solid #bbb !important;
-  color: #000 !important;
+  color: #111 !important;
 }
 .stTextInput > div > div:focus-within {
   border-color: #46a049 !important;
+  box-shadow: 0 0 0 2px rgba(70,160,73,0.2);
 }
 
-/* botões */
+/* =================== BOTÃO =================== */
 .stButton>button {
   background: #46a049 !important;
-  border: none !important;
+  border: 0 !important;
   color: #fff !important;
   font-weight: 700;
   padding: 8px 18px;
   border-radius: 8px;
 }
-.stButton>button:hover { filter: brightness(1.08); }
+.stButton>button:hover { filter: brightness(1.05); }
 
-/* logo centralizada */
-div[data-testid="stImage"] {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 20px;
+/* =================== LOGO =================== */
+img[alt="Sonax Logo"], img[alt="logo"] {
+  display: block;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 30px;
+  margin-bottom: 10px;
 }
-
-/* spacing */
-.container-tight { padding-top: 8px; }
 </style>
 """, unsafe_allow_html=True)
+
 
 LOGO = BASE_DIR / "assets" / "logo_sonax.png"
 st.title("Dashboard de Ligações - Agentes")
