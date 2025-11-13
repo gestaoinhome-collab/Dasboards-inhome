@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-APP_BUILD = "2025-11-12-18h4"
+APP_BUILD = "2025-11-12-19h1"
 st.set_page_config(page_title="Dashboard de Ligações", layout="wide")
 st.caption(f"Build: {APP_BUILD}")
 
@@ -146,11 +146,9 @@ h1 {
   color: #111 !important;
 }
 
-/* container fullpage só pra tela de login */
+/* wrapper só pra login (usamos classe no HTML) */
 .fullpage-login {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
+  width: 100%;
 }
 
 /* card de login */
@@ -209,30 +207,43 @@ LOGO = BASE_DIR / "assets" / "logo_sonax.png"
 IMG_SIDE = BASE_DIR / "assets" / "login_side.png"   # sua imagem do foguete
 
 # =====================================================================
-# 3.1) TELA DE LOGIN (FIXA, 2 COLUNAS)
+# 3.1) TELA DE LOGIN (FIXA, 2 COLUNAS, SEM SCROLL)
 # =====================================================================
 if "usuario" not in st.session_state:
 
-    # CSS extra SÓ para o estado de login (trava altura + remove scroll)
+    # CSS EXTRA SÓ PARA O ESTADO DE LOGIN
     st.markdown(
         """
 <style>
-/* remover padding do conteúdo principal */
-[data-testid="stAppViewContainer"] > .main {
-    padding-top: 0rem !important;
-    padding-bottom: 0rem !important;
-}
-
-/* ocupar 100vh e esconder rolagem NA TELA DE LOGIN */
-html, body, .stApp {
+/* ocupa 100vh e remove rolagem da tela inteira */
+html, body {
     height: 100vh !important;
     overflow: hidden !important;
+}
+
+/* container principal da página */
+[data-testid="stAppViewContainer"] {
+    height: 100vh !important;
+}
+
+/* tira padding vertical do main */
+[data-testid="stAppViewContainer"] > .main {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* block-container = onde o conteúdo da página fica */
+[data-testid="block-container"] {
+    height: 100vh !important;
+    display: flex;
+    align-items: center;
 }
 </style>
 """,
         unsafe_allow_html=True,
     )
 
+    # wrapper só pra semântica, quem manda é o CSS acima
     st.markdown('<div class="fullpage-login">', unsafe_allow_html=True)
 
     colL, colR = st.columns([0.48, 0.52])
@@ -265,7 +276,6 @@ html, body, .stApp {
     # ------------------ COLUNA DIREITA: imagem lateral ------------------
     with colR:
         if IMG_SIDE.exists():
-            # use_column_width deixa a imagem encaixar na coluna
             st.image(str(IMG_SIDE), use_column_width=True)
         else:
             st.write("")
