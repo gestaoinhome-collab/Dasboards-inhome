@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from pathlib import Path
 import subprocess
 import sys
 
-APP_BUILD = "2025-11-12-18h2"
+APP_BUILD = "2025-11-12-18h3"
 st.set_page_config(page_title="Dashboard de Ligações", layout="wide")
 st.caption(f"Build: {APP_BUILD}")
 
@@ -19,7 +18,6 @@ DADOS_DIR.mkdir(exist_ok=True)
 
 # =====================================================================
 # 1) CONFIGURAÇÃO DE USUÁRIOS (LOGIN -> ALIAS)
-#    (não travamos por empresa; cada agente pode atender várias)
 # =====================================================================
 USERS = {
     "ALESSANDRA SOUZA": {"senha": "1234", "alias": 309},
@@ -111,8 +109,7 @@ def atualizar_agora():
         args = [sys.executable, "atualiza_dados.py", "--alias", str(alias), "--dias", "30"]
         if user:
             args += ["--nome", str(user)]
-        # para debugar, descomente:
-        # args += ["--debug"]
+        # para debugar local: args += ["--debug"]
         subprocess.run(args, cwd=str(BASE_DIR))
     st.success("Atualização concluída! Os arquivos locais foram atualizados. ✅")
 
@@ -123,67 +120,84 @@ def atualizar_agora():
 st.markdown(
     """
 <style>
-/* =================== RESET GERAL =================== */
 * {
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue',
-               Arial, 'Noto Sans', 'Liberation Sans', 'Apple Color Emoji',
-               'Segoe UI Emoji','Segoe UI Symbol' !important;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial,
+               'Noto Sans', 'Liberation Sans', 'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol' !important;
 }
-header, #MainMenu, footer { visibility: hidden; height: 0; }
-section[data-testid="stSidebar"] { background: #ffffff; }
 
-/* Fundo geral e cor do texto */
+/* esconder menu padrão */
+header, #MainMenu, footer { visibility: hidden; height: 0; }
+
+/* sidebar clarinha */
+section[data-testid="stSidebar"] {
+  background: #f5f2ec;
+}
+
+/* fundo geral branco */
 html, body, .stApp {
   background-color: #ffffff !important;
   color: #111 !important;
 }
 
-/* =================== TÍTULO =================== */
-h1, .st-emotion-cache-10trblm {
+/* título padrão */
+h1 {
   font-weight: 800 !important;
   letter-spacing: 0.3px;
   color: #111 !important;
 }
 
-/* =================== CARD DE LOGIN =================== */
+/* container fullpage só pra tela de login */
+.fullpage-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+
+/* card de login */
 .login-card {
-  border: 1px solid rgba(0,0,0,0.08);
+  border: 1px solid rgba(0,0,0,0.06);
   background: #faf9f7;
   border-radius: 12px;
-  padding: 22px 20px 16px;
-  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  padding: 24px 22px 18px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
 }
 
-/* =================== INPUTS =================== */
+/* inputs */
 .stTextInput > div > div > input {
-  background: #ffffff !important;
-  border: 1px solid #bbb !important;
+  background: #fff !important;
+  border: 1px solid #ccc !important;
+  height: 42px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 15px;
   color: #111 !important;
 }
+
+/* foco inputs */
 .stTextInput > div > div:focus-within {
   border-color: #2687e2 !important;
-  box-shadow: 0 0 0 2px rgba(38,135,226,0.25);
+  box-shadow: 0 0 0 2px rgba(38,135,226,0.25) !important;
 }
 
-/* =================== BOTÕES (inclui login) =================== */
-.stButton>button, .stForm button[kind="primary"] {
+/* botão principal: azul */
+.stButton>button {
   background: #2687e2 !important;
   border: 0 !important;
   color: #fff !important;
-  font-weight: 700;
-  padding: 8px 18px;
-  border-radius: 8px;
+  font-weight: 700 !important;
+  padding: 8px 18px !important;
+  border-radius: 8px !important;
 }
-.stButton>button:hover, .stForm button[kind="primary"]:hover {
+.stButton>button:hover {
   filter: brightness(1.05);
 }
 
-/* =================== LOGO =================== */
+/* logo no topo centralizada */
 img[alt="Sonax Logo"], img[alt="logo"] {
   display: block;
-  margin-left: 0 !important;
-  margin-right: 30 !important;
-  margin-top: 0px;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 10px;
   margin-bottom: 20px;
 }
 </style>
@@ -192,38 +206,24 @@ img[alt="Sonax Logo"], img[alt="logo"] {
 )
 
 LOGO = BASE_DIR / "assets" / "logo_sonax.png"
-IMG_SIDE = BASE_DIR / "assets" / "login_side.png"
+IMG_SIDE = BASE_DIR / "assets" / "login_side.png"   # sua imagem do foguete
 
 # =====================================================================
-# 3A) LOGIN ESTILO SEEDPROD (FIXO, SEM SCROLL)
+# 3.1) TELA DE LOGIN (FIXA, 2 COLUNAS)
 # =====================================================================
 if "usuario" not in st.session_state:
-    # trava rolagem enquanto estiver na tela de login
-    st.markdown(
-        """
-<style>
-body, html, .stApp {
-    overflow: hidden !important;
-    height: 100vh !important;
-}
-</style>
-""",
-        unsafe_allow_html=True,
-    )
 
-    colL, colR = st.columns([0.50, 0.50])
+    st.markdown('<div class="fullpage-login">', unsafe_allow_html=True)
 
-    # ---------------------- COLUNA ESQUERDA (LOGO + FORM) ----------------------
+    colL, colR = st.columns([0.48, 0.52])
+
+    # ------------------ COLUNA ESQUERDA: logo + formulário ------------------
     with colL:
-        # logo no topo à esquerda
         if LOGO.exists():
-            st.image(str(LOGO), width=220, caption=None, output_format="PNG")
-        else:
-            st.caption("Logo não encontrada em assets/logo_sonax.png")
-
+            st.image(str(LOGO), caption=None, use_column_width=False, width=220)
         st.markdown(
-            "### Bem-vinda(o) ao painel do agente\n"
-            "Acesse com seu usuário e senha."
+            "### Acesse seu painel\n"
+            "Veja suas ligações, atendimentos e desempenho em um só lugar."
         )
 
         st.markdown('<div class="login-card">', unsafe_allow_html=True)
@@ -231,6 +231,7 @@ body, html, .stApp {
             user = st.text_input("Usuário", key="login_user")
             pwd = st.text_input("Senha", type="password", key="login_pwd")
             entrou = st.form_submit_button("Acessar")
+
         st.markdown("</div>", unsafe_allow_html=True)
 
         if entrou:
@@ -241,35 +242,23 @@ body, html, .stApp {
             else:
                 st.error("Usuário ou senha incorretos.")
 
-    # ---------------------- COLUNA DIREITA (IMAGEM LATERAL) --------------------
+    # ------------------ COLUNA DIREITA: imagem lateral ------------------
     with colR:
-        st.markdown("<br><br>", unsafe_allow_html=True)
         if IMG_SIDE.exists():
-            # imagem ocupa a largura da coluna, mantendo proporção
             st.image(str(IMG_SIDE), use_column_width=True)
         else:
-            st.warning("Imagem lateral não encontrada em assets/login_side.png")
+            st.write("")  # vazio, se não tiver imagem
 
-    # interrompe aqui para não renderizar o dashboard enquanto não logar
+    st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
 # =====================================================================
-# 4) PÓS-LOGIN (DASHBOARD) — reabilita rolagem
+# 4) PÓS-LOGIN (DASHBOARD)
 # =====================================================================
-st.markdown(
-    """
-<style>
-body, html, .stApp {
-    overflow: auto !important;
-    height: auto !important;
-}
-</style>
-""",
-    unsafe_allow_html=True,
-)
-
 usuario = st.session_state["usuario"]
 alias = st.session_state["alias"]
+
+st.title("Dashboard de Ligações - Agentes")
 st.subheader(f"Agente: {usuario} (alias {alias})")
 
 if st.button("🔄 Atualizar Agora"):
@@ -299,18 +288,8 @@ if "total_ligacoes" not in df.columns:
 # =====================================================================
 anos_disponiveis = sorted(df["ano"].dropna().unique())
 meses_nomes = [
-    "janeiro",
-    "fevereiro",
-    "março",
-    "abril",
-    "maio",
-    "junho",
-    "julho",
-    "agosto",
-    "setembro",
-    "outubro",
-    "novembro",
-    "dezembro",
+    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
 ]
 mes_map = {nome: i + 1 for i, nome in enumerate(meses_nomes)}
 
@@ -335,6 +314,7 @@ if df.empty:
 # =====================================================================
 total_ligacoes = int(df["total_ligacoes"].sum())
 total_empresas = df["Empresa"].nunique() if "Empresa" in df.columns else 0
+
 m1, m2 = st.columns(2)
 with m1:
     st.metric("Total Empresas", total_empresas)
@@ -345,11 +325,7 @@ with m2:
 # 8) GRÁFICO LINHA: LIGAÇÕES POR DIA
 # =====================================================================
 if "dia" in df.columns:
-    df_linha = (
-        df.groupby("dia", as_index=False)["total_ligacoes"]
-        .sum()
-        .sort_values("dia")
-    )
+    df_linha = df.groupby("dia", as_index=False)["total_ligacoes"].sum().sort_values("dia")
     fig_linha = px.line(
         df_linha,
         x="dia",
@@ -386,7 +362,6 @@ for cand in ["status", "ds_status", "situacao"]:
         break
 
 if status_col:
-    # regra conservadora: só estas são atendidas
     atendidas_set = {"OK", "ATENDIDA", "ATENDIDAS", "ATENDIMENTO", "COMPLETED"}
     tmp = df[[status_col, "total_ligacoes"]].copy()
     tmp["__norm"] = tmp[status_col].astype(str).str.upper().str.strip()
@@ -418,6 +393,7 @@ if status_col:
 eixo_categoria = "Empresa" if "Empresa" in df.columns else None
 if "fila" in df.columns:
     eixo_categoria = "fila"
+
 if eixo_categoria:
     df_fila = (
         df.groupby(eixo_categoria, as_index=False)["total_ligacoes"]
@@ -451,7 +427,7 @@ if eixo_categoria:
     g2.plotly_chart(fig_fila, use_container_width=True)
 
 # =====================================================================
-# 10) DIAGNÓSTICO RÁPIDO (para auditar volumes por empresa x dia)
+# 10) DIAGNÓSTICO RÁPIDO
 # =====================================================================
 with st.expander("Diagnóstico rápido (contagem por empresa e dia da semana)"):
     if "Empresa" in df.columns:
