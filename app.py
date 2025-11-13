@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-APP_BUILD = "2025-11-12-18h"
+APP_BUILD = "2025-11-12-18h2"
 st.set_page_config(page_title="Dashboard de Ligações", layout="wide")
 st.caption(f"Build: {APP_BUILD}")
 
@@ -19,6 +19,7 @@ DADOS_DIR.mkdir(exist_ok=True)
 
 # =====================================================================
 # 1) CONFIGURAÇÃO DE USUÁRIOS (LOGIN -> ALIAS)
+#    (não travamos por empresa; cada agente pode atender várias)
 # =====================================================================
 USERS = {
     "ALESSANDRA SOUZA": {"senha": "1234", "alias": 309},
@@ -102,9 +103,15 @@ def carregar_dados_local(alias: int) -> pd.DataFrame:
     return pd.read_parquet(arquivo)
 
 def atualizar_agora():
-    """Chama o script atualiza_dados.py para atualizar todos os agentes."""
+    """Chama o script atualiza_dados.py passando alias + nome do usuário logado."""
     with st.spinner("Buscando dados diretamente na API... isso pode demorar ⏳"):
-        subprocess.run([sys.executable, "atualiza_dados.py"], cwd=str(BASE_DIR))
+        user = st.session_state.get("usuario")
+        alias = st.session_state.get("alias")
+        args = [sys.executable, "atualiza_dados.py", "--alias", str(alias), "--dias", "30"]
+        if user:
+            args += ["--nome", str(user)]
+        # para debugar, descomente: args += ["--debug"]
+        subprocess.run(args, cwd=str(BASE_DIR))
     st.success("Atualização concluída! Os arquivos locais foram atualizados. ✅")
 
 # =====================================================================
@@ -174,7 +181,6 @@ img[alt="Sonax Logo"], img[alt="logo"] {
 </style>
 """, unsafe_allow_html=True)
 
-
 LOGO = BASE_DIR / "assets" / "logo_sonax.png"
 st.title("Dashboard de Ligações - Agentes")
 
@@ -201,8 +207,6 @@ if "usuario" not in st.session_state:
         else:
             st.caption("Logo não encontrada em assets/logo_sonax.png")
 
-    # coluna direita sem mascote (opcional)
-
     if entrou:
         if user in USERS and USERS[user]["senha"] == pwd:
             st.session_state["usuario"] = user
@@ -215,7 +219,6 @@ if "usuario" not in st.session_state:
 # =====================================================================
 # 4) PÓS-LOGIN (DASHBOARD)
 # =====================================================================
-# Botão de logout (útil para testar a tela de login)
 with st.sidebar:
     if st.button("↩️ Sair"):
         for k in list(st.session_state.keys()):
@@ -249,7 +252,7 @@ if "total_ligacoes" not in df.columns:
     df["total_ligacoes"] = 1
 
 # =====================================================================
-# 6) FILTROS
+# 6) FILTROS BÁSICOS (ano/mês)
 # =====================================================================
 anos_disponiveis = sorted(df["ano"].dropna().unique())
 meses_nomes = ["janeiro","fevereiro","março","abril","maio","junho",
@@ -318,27 +321,22 @@ for cand in ["status", "ds_status", "situacao"]:
         break
 
 if status_col:
-    df_status = df.groupby(status_col, as_index=False)["total_ligacoes"].sum()
-    mapa = {
-        "OK": "Atendidas", "ATENDIDA": "Atendidas",
-        "INDISPONÍVEL": "Não atendidas", "INDISPONIVEL": "Não atendidas",
-        "NAO ATENDIDA": "Não atendidas", "NÃO ATENDIDA": "Não atendidas",
-    }
-    df_status["Status"] = df_status[status_col].astype(str).str.upper().map(mapa).fillna(df_status[status_col])
-    ordem = ["Atendidas", "Não atendidas"]
-    df_status["Status"] = pd.Categorical(df_status["Status"], categories=ordem, ordered=True)
-    df_status = df_status.groupby("Status", as_index=False)["total_ligacoes"].sum()
+    # regra conservadora: só estas são atendidas
+    atendidas_set = {"OK", "ATENDIDA", "ATENDIDAS", "ATENDIMENTO", "COMPLETED"}
+    tmp = df[[status_col, "total_ligacoes"]].copy()
+    tmp["__norm"] = tmp[status_col].astype(str).str.upper().str.strip()
+    tmp["Status"] = tmp["__norm"].apply(lambda s: "Atendidas" if s in atendidas_set else "Não atendidas")
+
+    df_status = tmp.groupby("Status", as_index=False)["total_ligacoes"].sum()
+    df_status["Status"] = pd.Categorical(df_status["Status"], categories=["Atendidas", "Não atendidas"], ordered=True)
+    df_status = df_status.sort_values("Status")
 
     color_map = {"Atendidas": "#46a049", "Não atendidas": "#f19a37"}
     fig_pizza = px.pie(
         df_status, names="Status", values="total_ligacoes",
         title="Atendidas x Não Atendidas", color="Status", color_discrete_map=color_map
     )
-    fig_pizza.update_traces(
-        textinfo="label+value+percent",
-        textfont=dict(size=13),
-        pull=[0.02 if s == "Não atendidas" else 0 for s in df_status["Status"]]
-    )
+    fig_pizza.update_traces(textinfo="label+value+percent")
     g1.plotly_chart(fig_pizza, use_container_width=True)
 
 # --- BARRAS HORIZONTAIS ---
@@ -369,7 +367,23 @@ if eixo_categoria:
     g2.plotly_chart(fig_fila, use_container_width=True)
 
 # =====================================================================
-# 10) TABELA + DOWNLOAD
+# 10) DIAGNÓSTICO RÁPIDO (para auditar volumes por empresa x dia)
+# =====================================================================
+with st.expander("Diagnóstico rápido (contagem por empresa e dia da semana)"):
+    if "Empresa" in df.columns:
+        diag = (
+            df.assign(DiaSemana=df["dt_inicio"].dt.dayofweek)  # 0=Seg ... 6=Dom
+              .groupby(["Empresa","DiaSemana"], as_index=False)["total_ligacoes"].sum()
+              .sort_values(["Empresa","DiaSemana"])
+        )
+        nomes = {0:"Seg",1:"Ter",2:"Qua",3:"Qui",4:"Sex",5:"Sáb",6:"Dom"}
+        diag["DiaSemana"] = diag["DiaSemana"].map(nomes)
+        st.dataframe(diag, use_container_width=True)
+    else:
+        st.info("Coluna 'Empresa' não encontrada no dataset.")
+
+# =====================================================================
+# 11) TABELA + DOWNLOAD
 # =====================================================================
 st.subheader("Tabela de Ligações (amostra)")
 st.dataframe(df.head(50))
