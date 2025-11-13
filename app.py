@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-APP_BUILD = "2025-11-12-18h3"
+APP_BUILD = "2025-11-12-18h4"
 st.set_page_config(page_title="Dashboard de Ligações", layout="wide")
 st.caption(f"Build: {APP_BUILD}")
 
@@ -213,6 +213,26 @@ IMG_SIDE = BASE_DIR / "assets" / "login_side.png"   # sua imagem do foguete
 # =====================================================================
 if "usuario" not in st.session_state:
 
+    # CSS extra SÓ para o estado de login (trava altura + remove scroll)
+    st.markdown(
+        """
+<style>
+/* remover padding do conteúdo principal */
+[data-testid="stAppViewContainer"] > .main {
+    padding-top: 0rem !important;
+    padding-bottom: 0rem !important;
+}
+
+/* ocupar 100vh e esconder rolagem NA TELA DE LOGIN */
+html, body, .stApp {
+    height: 100vh !important;
+    overflow: hidden !important;
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
     st.markdown('<div class="fullpage-login">', unsafe_allow_html=True)
 
     colL, colR = st.columns([0.48, 0.52])
@@ -221,6 +241,7 @@ if "usuario" not in st.session_state:
     with colL:
         if LOGO.exists():
             st.image(str(LOGO), caption=None, use_column_width=False, width=220)
+
         st.markdown(
             "### Acesse seu painel\n"
             "Veja suas ligações, atendimentos e desempenho em um só lugar."
@@ -231,7 +252,6 @@ if "usuario" not in st.session_state:
             user = st.text_input("Usuário", key="login_user")
             pwd = st.text_input("Senha", type="password", key="login_pwd")
             entrou = st.form_submit_button("Acessar")
-
         st.markdown("</div>", unsafe_allow_html=True)
 
         if entrou:
@@ -245,9 +265,10 @@ if "usuario" not in st.session_state:
     # ------------------ COLUNA DIREITA: imagem lateral ------------------
     with colR:
         if IMG_SIDE.exists():
+            # use_column_width deixa a imagem encaixar na coluna
             st.image(str(IMG_SIDE), use_column_width=True)
         else:
-            st.write("")  # vazio, se não tiver imagem
+            st.write("")
 
     st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
@@ -432,7 +453,7 @@ if eixo_categoria:
 with st.expander("Diagnóstico rápido (contagem por empresa e dia da semana)"):
     if "Empresa" in df.columns:
         diag = (
-            df.assign(DiaSemana=df["dt_inicio"].dt.dayofweek)  # 0=Seg ... 6=Dom
+            df.assign(DiaSemana=df["dt_inicio"].dt.dayofweek)
             .groupby(["Empresa", "DiaSemana"], as_index=False)["total_ligacoes"]
             .sum()
             .sort_values(["Empresa", "DiaSemana"])
