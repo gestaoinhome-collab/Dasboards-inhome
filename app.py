@@ -102,6 +102,7 @@ def carregar_dados_local(alias: int) -> pd.DataFrame:
         return pd.DataFrame()
     return pd.read_parquet(arquivo)
 
+
 def atualizar_agora():
     """Chama o script atualiza_dados.py passando alias + nome do usuário logado."""
     with st.spinner("Buscando dados diretamente na API... isso pode demorar ⏳"):
@@ -110,25 +111,30 @@ def atualizar_agora():
         args = [sys.executable, "atualiza_dados.py", "--alias", str(alias), "--dias", "30"]
         if user:
             args += ["--nome", str(user)]
-        # para debugar, descomente: args += ["--debug"]
+        # para debugar, descomente:
+        # args += ["--debug"]
         subprocess.run(args, cwd=str(BASE_DIR))
     st.success("Atualização concluída! Os arquivos locais foram atualizados. ✅")
 
+
 # =====================================================================
-# 3) ESTILO / LOGIN
+# 3) ESTILO GLOBAL
 # =====================================================================
-st.markdown("""
+st.markdown(
+    """
 <style>
 /* =================== RESET GERAL =================== */
 * {
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', 'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol' !important;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue',
+               Arial, 'Noto Sans', 'Liberation Sans', 'Apple Color Emoji',
+               'Segoe UI Emoji','Segoe UI Symbol' !important;
 }
 header, #MainMenu, footer { visibility: hidden; height: 0; }
-section[data-testid="stSidebar"] { background: #f5f2ec; }
+section[data-testid="stSidebar"] { background: #ffffff; }
 
 /* Fundo geral e cor do texto */
 html, body, .stApp {
-  background-color: #f5f2ec !important;
+  background-color: #ffffff !important;
   color: #111 !important;
 }
 
@@ -150,80 +156,117 @@ h1, .st-emotion-cache-10trblm {
 
 /* =================== INPUTS =================== */
 .stTextInput > div > div > input {
-  background: #fff !important;
+  background: #ffffff !important;
   border: 1px solid #bbb !important;
   color: #111 !important;
 }
 .stTextInput > div > div:focus-within {
-  border-color: #46a049 !important;
-  box-shadow: 0 0 0 2px rgba(70,160,73,0.2);
+  border-color: #2687e2 !important;
+  box-shadow: 0 0 0 2px rgba(38,135,226,0.25);
 }
 
-/* =================== BOTÃO =================== */
-.stButton>button {
-  background: #46a049 !important;
+/* =================== BOTÕES (inclui login) =================== */
+.stButton>button, .stForm button[kind="primary"] {
+  background: #2687e2 !important;
   border: 0 !important;
   color: #fff !important;
   font-weight: 700;
   padding: 8px 18px;
   border-radius: 8px;
 }
-.stButton>button:hover { filter: brightness(1.05); }
+.stButton>button:hover, .stForm button[kind="primary"]:hover {
+  filter: brightness(1.05);
+}
 
 /* =================== LOGO =================== */
 img[alt="Sonax Logo"], img[alt="logo"] {
   display: block;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  margin-top: 30px;
-  margin-bottom: 10px;
+  margin-left: 0 !important;
+  margin-right: 30 !important;
+  margin-top: 0px;
+  margin-bottom: 20px;
 }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 LOGO = BASE_DIR / "assets" / "logo_sonax.png"
-st.title("Dashboard de Ligações - Agentes")
+IMG_SIDE = BASE_DIR / "assets" / "login_side.png"
 
-# ---- LOGIN estilizado (único) ----
+# =====================================================================
+# 3A) LOGIN ESTILO SEEDPROD (FIXO, SEM SCROLL)
+# =====================================================================
 if "usuario" not in st.session_state:
-    colL, colSpacer, colR = st.columns([0.58, 0.02, 0.40])
-    with colL:
-        st.markdown('<div class="login-card">', unsafe_allow_html=True)
-        with st.form("login", clear_on_submit=False):
-            user = st.text_input("Usuário", key="login_user")
-            colps, colchk = st.columns([0.86, 0.14])
-            with colps:
-                pwd = st.text_input("Senha", type="password", key="login_pwd")
-            with colchk:
-                mostrar = st.checkbox("👁", value=False, help="Mostrar senha")
-            if mostrar:
-                st.info(pwd if pwd else "Digite a senha...", icon="🔑")
-            entrou = st.form_submit_button("Entrar")
-        st.markdown('</div>', unsafe_allow_html=True)
+    # trava rolagem enquanto estiver na tela de login
+    st.markdown(
+        """
+<style>
+body, html, .stApp {
+    overflow: hidden !important;
+    height: 100vh !important;
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
 
+    colL, colR = st.columns([0.50, 0.50])
+
+    # ---------------------- COLUNA ESQUERDA (LOGO + FORM) ----------------------
+    with colL:
+        # logo no topo à esquerda
         if LOGO.exists():
-            st.markdown('<div class="container-tight"></div>', unsafe_allow_html=True)
-            st.image(str(LOGO), use_column_width=False, width=520)
+            st.image(str(LOGO), width=220, caption=None, output_format="PNG")
         else:
             st.caption("Logo não encontrada em assets/logo_sonax.png")
 
-    if entrou:
-        if user in USERS and USERS[user]["senha"] == pwd:
-            st.session_state["usuario"] = user
-            st.session_state["alias"] = USERS[user]["alias"]
-            st.rerun()
+        st.markdown(
+            "### Bem-vinda(o) ao painel do agente\n"
+            "Acesse com seu usuário e senha."
+        )
+
+        st.markdown('<div class="login-card">', unsafe_allow_html=True)
+        with st.form("login_form", clear_on_submit=False):
+            user = st.text_input("Usuário", key="login_user")
+            pwd = st.text_input("Senha", type="password", key="login_pwd")
+            entrou = st.form_submit_button("Acessar")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        if entrou:
+            if user in USERS and USERS[user]["senha"] == pwd:
+                st.session_state["usuario"] = user
+                st.session_state["alias"] = USERS[user]["alias"]
+                st.rerun()
+            else:
+                st.error("Usuário ou senha incorretos.")
+
+    # ---------------------- COLUNA DIREITA (IMAGEM LATERAL) --------------------
+    with colR:
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        if IMG_SIDE.exists():
+            # imagem ocupa a largura da coluna, mantendo proporção
+            st.image(str(IMG_SIDE), use_column_width=True)
         else:
-            st.error("Usuário ou senha inválidos.")
+            st.warning("Imagem lateral não encontrada em assets/login_side.png")
+
+    # interrompe aqui para não renderizar o dashboard enquanto não logar
     st.stop()
 
 # =====================================================================
-# 4) PÓS-LOGIN (DASHBOARD)
+# 4) PÓS-LOGIN (DASHBOARD) — reabilita rolagem
 # =====================================================================
-with st.sidebar:
-    if st.button("↩️ Sair"):
-        for k in list(st.session_state.keys()):
-            del st.session_state[k]
-        st.rerun()
+st.markdown(
+    """
+<style>
+body, html, .stApp {
+    overflow: auto !important;
+    height: auto !important;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
 
 usuario = st.session_state["usuario"]
 alias = st.session_state["alias"]
@@ -255,8 +298,20 @@ if "total_ligacoes" not in df.columns:
 # 6) FILTROS BÁSICOS (ano/mês)
 # =====================================================================
 anos_disponiveis = sorted(df["ano"].dropna().unique())
-meses_nomes = ["janeiro","fevereiro","março","abril","maio","junho",
-               "julho","agosto","setembro","outubro","novembro","dezembro"]
+meses_nomes = [
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+]
 mes_map = {nome: i + 1 for i, nome in enumerate(meses_nomes)}
 
 col_f1, col_f2 = st.columns(2)
@@ -290,21 +345,31 @@ with m2:
 # 8) GRÁFICO LINHA: LIGAÇÕES POR DIA
 # =====================================================================
 if "dia" in df.columns:
-    df_linha = df.groupby("dia", as_index=False)["total_ligacoes"].sum().sort_values("dia")
-    fig_linha = px.line(df_linha, x="dia", y="total_ligacoes", title="Ligações por Dia", markers=True)
+    df_linha = (
+        df.groupby("dia", as_index=False)["total_ligacoes"]
+        .sum()
+        .sort_values("dia")
+    )
+    fig_linha = px.line(
+        df_linha,
+        x="dia",
+        y="total_ligacoes",
+        title="Ligações por Dia",
+        markers=True,
+    )
     fig_linha.update_traces(
         line=dict(color="#46a049", width=3),
         fill="tozeroy",
         fillcolor="rgba(70,160,73,0.2)",
         text=df_linha["total_ligacoes"],
         texttemplate="<b>%{text}</b>",
-        textposition="top center"
+        textposition="top center",
     )
     fig_linha.update_layout(
         xaxis_title="Dia",
         yaxis_title="Total de ligações",
         hovermode="x unified",
-        yaxis=dict(rangemode="tozero")
+        yaxis=dict(rangemode="tozero"),
     )
     st.plotly_chart(fig_linha, use_container_width=True)
 
@@ -325,16 +390,26 @@ if status_col:
     atendidas_set = {"OK", "ATENDIDA", "ATENDIDAS", "ATENDIMENTO", "COMPLETED"}
     tmp = df[[status_col, "total_ligacoes"]].copy()
     tmp["__norm"] = tmp[status_col].astype(str).str.upper().str.strip()
-    tmp["Status"] = tmp["__norm"].apply(lambda s: "Atendidas" if s in atendidas_set else "Não atendidas")
+    tmp["Status"] = tmp["__norm"].apply(
+        lambda s: "Atendidas" if s in atendidas_set else "Não atendidas"
+    )
 
     df_status = tmp.groupby("Status", as_index=False)["total_ligacoes"].sum()
-    df_status["Status"] = pd.Categorical(df_status["Status"], categories=["Atendidas", "Não atendidas"], ordered=True)
+    df_status["Status"] = pd.Categorical(
+        df_status["Status"],
+        categories=["Atendidas", "Não atendidas"],
+        ordered=True,
+    )
     df_status = df_status.sort_values("Status")
 
     color_map = {"Atendidas": "#46a049", "Não atendidas": "#f19a37"}
     fig_pizza = px.pie(
-        df_status, names="Status", values="total_ligacoes",
-        title="Atendidas x Não Atendidas", color="Status", color_discrete_map=color_map
+        df_status,
+        names="Status",
+        values="total_ligacoes",
+        title="Atendidas x Não Atendidas",
+        color="Status",
+        color_discrete_map=color_map,
     )
     fig_pizza.update_traces(textinfo="label+value+percent")
     g1.plotly_chart(fig_pizza, use_container_width=True)
@@ -344,10 +419,17 @@ eixo_categoria = "Empresa" if "Empresa" in df.columns else None
 if "fila" in df.columns:
     eixo_categoria = "fila"
 if eixo_categoria:
-    df_fila = df.groupby(eixo_categoria, as_index=False)["total_ligacoes"].sum().sort_values("total_ligacoes")
+    df_fila = (
+        df.groupby(eixo_categoria, as_index=False)["total_ligacoes"]
+        .sum()
+        .sort_values("total_ligacoes")
+    )
     fig_fila = px.bar(
-        df_fila, x="total_ligacoes", y=eixo_categoria,
-        orientation="h", title=f"Total por {eixo_categoria}"
+        df_fila,
+        x="total_ligacoes",
+        y=eixo_categoria,
+        orientation="h",
+        title=f"Total por {eixo_categoria}",
     )
     fig_fila.update_traces(
         marker_color="#f19a37",
@@ -355,14 +437,16 @@ if eixo_categoria:
         marker_line_width=1,
         text=df_fila["total_ligacoes"],
         texttemplate="%{text}",
-        textposition="outside"
+        textposition="outside",
     )
     fig_fila.update_layout(
-        xaxis_title="Total de ligações", yaxis_title=eixo_categoria,
-        uniformtext_minsize=10, uniformtext_mode="show",
+        xaxis_title="Total de ligações",
+        yaxis_title=eixo_categoria,
+        uniformtext_minsize=10,
+        uniformtext_mode="show",
         margin=dict(l=10, r=10, t=60, b=10),
         yaxis=dict(automargin=True),
-        xaxis=dict(rangemode="tozero")
+        xaxis=dict(rangemode="tozero"),
     )
     g2.plotly_chart(fig_fila, use_container_width=True)
 
@@ -373,10 +457,11 @@ with st.expander("Diagnóstico rápido (contagem por empresa e dia da semana)"):
     if "Empresa" in df.columns:
         diag = (
             df.assign(DiaSemana=df["dt_inicio"].dt.dayofweek)  # 0=Seg ... 6=Dom
-              .groupby(["Empresa","DiaSemana"], as_index=False)["total_ligacoes"].sum()
-              .sort_values(["Empresa","DiaSemana"])
+            .groupby(["Empresa", "DiaSemana"], as_index=False)["total_ligacoes"]
+            .sum()
+            .sort_values(["Empresa", "DiaSemana"])
         )
-        nomes = {0:"Seg",1:"Ter",2:"Qua",3:"Qui",4:"Sex",5:"Sáb",6:"Dom"}
+        nomes = {0: "Seg", 1: "Ter", 2: "Qua", 3: "Qui", 4: "Sex", 5: "Sáb", 6: "Dom"}
         diag["DiaSemana"] = diag["DiaSemana"].map(nomes)
         st.dataframe(diag, use_container_width=True)
     else:
