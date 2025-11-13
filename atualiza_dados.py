@@ -11,8 +11,6 @@ DADOS_DIR = BASE_DIR / "dados"
 DADOS_DIR.mkdir(exist_ok=True)
 
 # ----------------------- carregar credenciais -----------------------
-
-
 def _coerce_empresas(val):
     if val is None:
         return []
@@ -22,32 +20,27 @@ def _coerce_empresas(val):
         return json.loads(val)
     return []
 
-
 EMPRESAS = []
-
-# 1) via st.secrets (quando rodar dentro do Streamlit Cloud)
+# 1) st.secrets
 try:
     import streamlit as st  # type: ignore
-
     if "EMPRESAS" in st.secrets:
         EMPRESAS = _coerce_empresas(st.secrets["EMPRESAS"])
 except Exception:
     pass
 
-# 2) via .streamlit/secrets.toml (local)
+# 2) .streamlit/secrets.toml
 if not EMPRESAS:
     toml_path = BASE_DIR / ".streamlit" / "secrets.toml"
     if toml_path.exists():
         try:
             import tomllib  # py3.11+
             data = tomllib.loads(toml_path.read_text(encoding="utf-8"))
-            EMPRESAS = _coerce_empresas(
-                data.get("EMPRESAS") or data.get("EMPRESAS_JSON")
-            )
+            EMPRESAS = _coerce_empresas(data.get("EMPRESAS") or data.get("EMPRESAS_JSON"))
         except Exception:
             pass
 
-# 3) fallback: empresas_config.json
+# 3) fallback
 if not EMPRESAS:
     json_path = BASE_DIR / "empresas_config.json"
     if json_path.exists():
@@ -60,10 +53,7 @@ if not EMPRESAS:
     )
 
 # ----------------------- helpers -----------------------
-
-
 def obter_token(login: str, senha: str) -> str:
-    """Obtém token de autenticação na API Sonax."""
     r = requests.post(
         "https://apiv2.sonax.net.br/login",
         json={"id": login, "senha": senha},
@@ -75,7 +65,7 @@ def obter_token(login: str, senha: str) -> str:
 
 
 def _parse_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Garante a coluna dt_inicio a partir de alguma coluna de data existente."""
+    # escolhe a primeira coluna de data existente e cria dt_inicio
     for c in ["dt_inicio", "data", "dt", "data_inicio", "datahora", "created_at"]:
         if c in df.columns:
             df["dt_inicio"] = pd.to_datetime(df[c], dayfirst=True, errors="coerce")
@@ -85,49 +75,41 @@ def _parse_data(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _mask_agente_por_alias(df: pd.DataFrame, alias: int) -> pd.Series:
-    """
-    Retorna máscara booleana selecionando SOMENTE registros desse alias (ramal).
-
-    Não usa nome do agente de forma nenhuma, exatamente para evitar “vazar” ligações
-    de outro agente que por acaso tenha mesmo nome.
-    """
+def _mask_agente(df: pd.DataFrame, alias: int, nome_agente: str | None = None) -> pd.Series:
+    """Retorna máscara booleana: (alias bate) OU (nome_agente bate) quando disponíveis."""
     if df.empty:
         return pd.Series(False, index=df.index)
 
-    alias_cols = [
-        "alias",
-        "id_alias",
-        "idagente",
-        "id_agente",
-        "ramal",
-        "id_ramal",
-        "id_usuario",
-        "idusuario",
-        "id_operador",
-        "idoperador",
-    ]
-
+    # alias/ramal candidatos
+    alias_cols = ["alias", "id_alias", "idagente", "id_agente", "ramal", "id_ramal", "id_usuario"]
     m_alias = pd.Series(False, index=df.index)
     for col in alias_cols:
         if col in df.columns:
             try:
-                m_alias |= df[col].astype(str) == str(alias)
+                m_alias |= (df[col].astype(str) == str(alias))
             except Exception:
-                # se der problema de tipo em alguma coluna, ignora aquela coluna
                 pass
 
-    return m_alias
+    # reforço por nome (opcional)
+    m_nome = pd.Series(False, index=df.index)
+    if nome_agente:
+        nome_norm = str(nome_agente).strip().upper()
+        name_cols = ["agente", "agent_name", "nm_agente", "operador", "usuario", "user_name", "nome"]
+        for col in name_cols:
+            if col in df.columns:
+                try:
+                    m_nome |= (df[col].astype(str).str.upper().str.strip() == nome_norm)
+                except Exception:
+                    pass
+
+    # se temos nome, usa (alias OR nome); senão, só alias
+    return (m_alias | m_nome) if nome_agente else m_alias
 
 
-def buscar_ultimos_dias(alias: int, dias: int = 7, debug: bool = True) -> pd.DataFrame:
-    """
-    Busca nas APIs de TODAS as empresas configuradas,
-    junta tudo e filtra SOMENTE as ligações que passaram pelo alias informado.
-    """
+def buscar_ultimos_dias(alias: int, dias: int = 7, nome_agente: str | None = None, debug: bool = True) -> pd.DataFrame:
     fim = date.today()
     inicio = fim - timedelta(days=dias)
-    todos: list[dict] = []
+    todos = []
 
     for emp in EMPRESAS:
         empresa = emp.get("empresa", "<sem_nome>")
@@ -142,15 +124,11 @@ def buscar_ultimos_dias(alias: int, dias: int = 7, debug: bool = True) -> pd.Dat
             "dt_inicio": inicio.strftime("%d/%m/%Y"),
             "dt_fim": fim.strftime("%d/%m/%Y"),
         }
-
         try:
             resp = requests.post(
                 "https://apiv2.sonax.net.br/api/vingadora/relatorioEntrante",
                 data=body,
-                headers={
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "token": token,
-                },
+                headers={"Content-Type": "application/x-www-form-urlencoded", "token": token},
                 timeout=60,
             )
             j = resp.json()
@@ -162,57 +140,46 @@ def buscar_ultimos_dias(alias: int, dias: int = 7, debug: bool = True) -> pd.Dat
 
         if debug:
             print(f"[INFO] {empresa}: {len(relatorio)} linhas")
-
-        # marca empresa em cada registro
         for r in relatorio:
             r["Empresa"] = empresa
-
         todos.extend(relatorio)
 
     df = pd.DataFrame(todos)
     if df.empty:
         if debug:
-            print("[INFO] Nenhum registro retornado de nenhuma empresa.")
+            print("[INFO] Nenhum registro retornado.")
         return df
 
-    # Normalização de data
+    # normalizações
     df = _parse_data(df)
 
-    # Deduplicação por ligação (quando houver identificador único)
+    # dedup por chamada quando possível (evita múltiplos eventos da mesma ligação)
     dedup_key = None
     for cand in ["uniqueid", "unique_id", "id_chamada", "uuid", "call_id"]:
         if cand in df.columns:
             dedup_key = cand
             break
-
     if dedup_key:
-        df = df.drop_duplicates(subset=[dedup_key], keep="last")
+        df = df.drop_duplicates(subset=["Empresa", dedup_key], keep="last")
     else:
         df = df.drop_duplicates(keep="last")
 
-    # Garante coluna de contagem
+    # contagem
     if "total_ligacoes" not in df.columns:
         df["total_ligacoes"] = 1
 
-    # Filtro por alias (ramal)
-    masc = _mask_agente_por_alias(df, alias=alias)
+    # filtro por agente
+    masc = _mask_agente(df, alias=alias, nome_agente=nome_agente)
     if debug:
-        print(f"[INFO] Filtro por alias={alias} -> {masc.sum()} linhas")
+        print(f"[INFO] Filtro agente (alias={alias}, nome={nome_agente or '-'}) -> {masc.sum()} linhas")
     df = df[masc].copy()
 
     return df
 
 
-def atualizar_cache(alias: int, dias: int = 7, debug: bool = True):
-    """
-    Atualiza o parquet do alias informado.
-
-    - Busca últimos `dias` em TODAS as empresas.
-    - Filtra pelo alias.
-    - Junta com o que já existe no parquet (se houver) e remove duplicados.
-    """
+def atualizar_cache(alias: int, dias: int = 7, nome_agente: str | None = None, debug: bool = True):
     arq = DADOS_DIR / f"dados_{alias}.parquet"
-    novos = buscar_ultimos_dias(alias, dias=dias, debug=debug)
+    novos = buscar_ultimos_dias(alias, dias=dias, nome_agente=nome_agente, debug=debug)
 
     if arq.exists():
         try:
@@ -235,24 +202,16 @@ def atualizar_cache(alias: int, dias: int = 7, debug: bool = True):
 if __name__ == "__main__":
     import argparse
 
-    p = argparse.ArgumentParser(
-        description=(
-            "Atualiza o cache .parquet de um alias (ramal) específico, "
-            "buscando em todas as empresas configuradas."
-        )
-    )
-    p.add_argument("--alias", type=int, required=True, help="Ramal / alias do agente")
+    p = argparse.ArgumentParser()
+    p.add_argument("--alias", type=int, required=True)
     p.add_argument(
-        "--dias",
-        type=int,
-        default=30,
-        help="Quantidade de dias para trás a partir de hoje (default: 30)",
+        "--nome",
+        type=str,
+        default=None,
+        help="Opcional: reforço por nome do agente (ex.: 'AMANDA MARIANO')",
     )
-    p.add_argument(
-        "--debug",
-        action="store_true",
-        help="Mostra logs de depuração no console",
-    )
+    p.add_argument("--dias", type=int, default=30)
+    p.add_argument("--debug", action="store_true")
     args = p.parse_args()
 
-    atualizar_cache(args.alias, dias=args.dias, debug=args.debug)
+    atualizar_cache(args.alias, dias=args.dias, nome_agente=args.nome, debug=args.debug)
