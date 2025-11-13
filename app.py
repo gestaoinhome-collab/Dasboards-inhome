@@ -5,9 +5,9 @@ from pathlib import Path
 import subprocess
 import sys
 
-APP_BUILD = "2025-11-12-19h1"
+APP_BUILD = "2025-11-12-19h2"
+
 st.set_page_config(page_title="Dashboard de Ligações", layout="wide")
-st.caption(f"Build: {APP_BUILD}")
 
 # =====================================================================
 # 0) DIRETÓRIOS / ARQUIVOS
@@ -90,7 +90,6 @@ USERS = {
 # 2) FUNÇÕES DE CACHE LOCAL (.parquet)
 # =====================================================================
 def carregar_dados_local(alias: int) -> pd.DataFrame:
-    """Carrega o arquivo .parquet do agente. Se não existir, avisa o usuário."""
     arquivo = DADOS_DIR / f"dados_{alias}.parquet"
     if not arquivo.exists():
         st.warning(
@@ -102,17 +101,14 @@ def carregar_dados_local(alias: int) -> pd.DataFrame:
 
 
 def atualizar_agora():
-    """Chama o script atualiza_dados.py passando alias + nome do usuário logado."""
     with st.spinner("Buscando dados diretamente na API... isso pode demorar ⏳"):
         user = st.session_state.get("usuario")
         alias = st.session_state.get("alias")
         args = [sys.executable, "atualiza_dados.py", "--alias", str(alias), "--dias", "30"]
         if user:
             args += ["--nome", str(user)]
-        # para debugar local: args += ["--debug"]
         subprocess.run(args, cwd=str(BASE_DIR))
     st.success("Atualização concluída! Os arquivos locais foram atualizados. ✅")
-
 
 # =====================================================================
 # 3) ESTILO GLOBAL
@@ -144,11 +140,6 @@ h1 {
   font-weight: 800 !important;
   letter-spacing: 0.3px;
   color: #111 !important;
-}
-
-/* wrapper só pra login (usamos classe no HTML) */
-.fullpage-login {
-  width: 100%;
 }
 
 /* card de login */
@@ -190,7 +181,7 @@ h1 {
   filter: brightness(1.05);
 }
 
-/* logo no topo centralizada */
+/* logo topo */
 img[alt="Sonax Logo"], img[alt="logo"] {
   display: block;
   margin-left: auto !important;
@@ -204,18 +195,18 @@ img[alt="Sonax Logo"], img[alt="logo"] {
 )
 
 LOGO = BASE_DIR / "assets" / "logo_sonax.png"
-IMG_SIDE = BASE_DIR / "assets" / "login_side.png"   # sua imagem do foguete
+IMG_SIDE = BASE_DIR / "assets" / "login_side.png"   # imagem foguete
 
 # =====================================================================
-# 3.1) TELA DE LOGIN (FIXA, 2 COLUNAS, SEM SCROLL)
+# 3.1) TELA DE LOGIN (SEM SCROLL)
 # =====================================================================
 if "usuario" not in st.session_state:
 
-    # CSS EXTRA SÓ PARA O ESTADO DE LOGIN
+    # CSS extra só quando está na tela de login
     st.markdown(
         """
 <style>
-/* ocupa 100vh e remove rolagem da tela inteira */
+/* ocupa 100vh e trava rolagem */
 html, body {
     height: 100vh !important;
     overflow: hidden !important;
@@ -232,26 +223,36 @@ html, body {
     padding-bottom: 0 !important;
 }
 
-/* block-container = onde o conteúdo da página fica */
+/* block-container centralizado vertical */
 [data-testid="block-container"] {
     height: 100vh !important;
     display: flex;
     align-items: center;
+}
+
+/* wrapper da imagem lateral: mesma altura da tela */
+.side-img-wrapper {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+}
+.side-img-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 </style>
 """,
         unsafe_allow_html=True,
     )
 
-    # wrapper só pra semântica, quem manda é o CSS acima
-    st.markdown('<div class="fullpage-login">', unsafe_allow_html=True)
-
     colL, colR = st.columns([0.48, 0.52])
 
-    # ------------------ COLUNA ESQUERDA: logo + formulário ------------------
+    # -------- COLUNA ESQUERDA: logo + form --------
     with colL:
         if LOGO.exists():
-            st.image(str(LOGO), caption=None, use_column_width=False, width=220)
+            st.image(str(LOGO), use_column_width=False, width=220)
 
         st.markdown(
             "### Acesse seu painel\n"
@@ -273,19 +274,23 @@ html, body {
             else:
                 st.error("Usuário ou senha incorretos.")
 
-    # ------------------ COLUNA DIREITA: imagem lateral ------------------
+    # -------- COLUNA DIREITA: imagem foguete --------
     with colR:
         if IMG_SIDE.exists():
-            st.image(str(IMG_SIDE), use_column_width=True)
+            st.markdown('<div class="side-img-wrapper">', unsafe_allow_html=True)
+            st.image(str(IMG_SIDE), use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.write("")
 
-    st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
 # =====================================================================
 # 4) PÓS-LOGIN (DASHBOARD)
 # =====================================================================
+# aqui pode mostrar o build, sem atrapalhar o login
+st.caption(f"Build: {APP_BUILD}")
+
 usuario = st.session_state["usuario"]
 alias = st.session_state["alias"]
 
@@ -319,8 +324,8 @@ if "total_ligacoes" not in df.columns:
 # =====================================================================
 anos_disponiveis = sorted(df["ano"].dropna().unique())
 meses_nomes = [
-    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
+    "janeiro","fevereiro","março","abril","maio","junho",
+    "julho","agosto","setembro","outubro","novembro","dezembro"
 ]
 mes_map = {nome: i + 1 for i, nome in enumerate(meses_nomes)}
 
@@ -385,7 +390,6 @@ if "dia" in df.columns:
 # =====================================================================
 g1, g2 = st.columns(2)
 
-# --- PIZZA ---
 status_col = None
 for cand in ["status", "ds_status", "situacao"]:
     if cand in df.columns:
@@ -420,7 +424,6 @@ if status_col:
     fig_pizza.update_traces(textinfo="label+value+percent")
     g1.plotly_chart(fig_pizza, use_container_width=True)
 
-# --- BARRAS HORIZONTAIS ---
 eixo_categoria = "Empresa" if "Empresa" in df.columns else None
 if "fila" in df.columns:
     eixo_categoria = "fila"
