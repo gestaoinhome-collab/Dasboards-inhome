@@ -82,7 +82,7 @@ USERS = {
 # ============================================================
 st.markdown("""
 <style>
-/* Fundo azul */
+/* Fundo limpo */
 body, .stApp {
     background-color: #FFFAFA !important;
     height: 100vh;
@@ -99,19 +99,6 @@ body, .stApp {
     height: 100vh !important;
     padding: 0 !important;
     margin: 0 !important;
-}
-
-/* Caixa de login centralizada */
-.login-box {
-    background-color: #ffffff;
-    padding: 40px 30px;
-    border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    width: 320px;
-    text-align: center;
-}
-
-
 }
 
 /* Título e subtítulo */
@@ -138,22 +125,6 @@ body, .stApp {
     height: 42px;
     border-radius: 8px;
     font-size: 14px;
-}
-
-/* Botão */
-.stButton>button {
-    width: 100%;
-    background: #ffffff !important;
-    color: #2687e2 !important;
-    font-size: 16px;
-    font-weight: bold;
-    padding: 10px;
-    border-radius: 999px;
-    border: none;
-    margin-top: 8px;
-}
-.stButton>button:hover {
-    filter: brightness(0.95);
 }
 </style>
 """, unsafe_allow_html=True)
