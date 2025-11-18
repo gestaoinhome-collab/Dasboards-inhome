@@ -4,7 +4,7 @@ from pathlib import Path
 st.set_page_config(page_title="Login - Sonax In Home", layout="wide")
 
 BASE_DIR = Path(__file__).resolve().parent
-LOGO = BASE_DIR / "assets" / "logo_sonax.png"
+
 
 # ============================================================
 # 1) USUÁRIOS
@@ -111,10 +111,7 @@ body, .stApp {
     text-align: center;
 }
 
-/* Logo */
-.login-box .stImage img {
-    width: 100px;
-    margin-bottom: 24px;
+
 }
 
 /* Título e subtítulo */
@@ -176,7 +173,7 @@ st.markdown("<div class='login-box'>", unsafe_allow_html=True)
 
 # Logo, título, subtítulo, formulário...
 # Exemplo:
-st.image(str(LOGO))
+
 st.markdown("<div class='login-title'>Entrar</div>", unsafe_allow_html=True)
 st.markdown("<div class='login-subtitle'>Acesse o painel da Sonax In Home com seu usuário e senha.</div>", unsafe_allow_html=True)
 

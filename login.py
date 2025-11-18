@@ -4,7 +4,7 @@ from pathlib import Path
 st.set_page_config(page_title="Login - Sonax In Home", layout="wide")
 
 BASE_DIR = Path(__file__).resolve().parent
-LOGO = BASE_DIR / "assets" / "logo_sonax.png"
+
 
 USERS = {
     "ALESSANDRA SOUZA": {"senha": "1234", "alias": 309},
@@ -94,8 +94,7 @@ if "usuario" in st.session_state and "alias" in st.session_state:
 # =====================================================================
 st.markdown("<div class='login-box'>", unsafe_allow_html=True)
 
-if LOGO.exists():
-    st.image(str(LOGO))
+
 
 st.markdown("<div class='login-title'>Entrar</div>", unsafe_allow_html=True)
 st.markdown(
