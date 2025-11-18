@@ -84,7 +84,7 @@ st.markdown("""
 <style>
 /* Fundo azul */
 body, .stApp {
-    background-color: #2687e2 !important;
+    background-color: #FFFAFA !important;
     height: 100vh;
     margin: 0;
     padding: 0;
